@@ -17,11 +17,11 @@ services:
     volumes:
       - ${ADGUARD_VPN_STATE_DIR}:/root/.local/share/adguardvpn-cli
     healthcheck:
-      test: ["CMD-SHELL", "adguardvpn-cli status | grep -Eqi '(^|[[:space:]])Connected([[:space:]]|$)'"]
-      interval: 10s
-      timeout: 5s
-      retries: 18
-      start_period: 20s
+      test: ["CMD-SHELL", "ip -4 route get 1.1.1.1 | grep -Eq 'dev tun0([[:space:]]|$)' && curl -4 -fsS --max-time 10 https://api.ipify.org >/dev/null"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
 
   runner:
     network_mode: service:vpn
