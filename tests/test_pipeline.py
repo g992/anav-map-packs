@@ -1,10 +1,17 @@
+import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.build_shard import shard_for
-from scripts.cache_openfreemap import checksum_for
+from scripts.cache_openfreemap import (
+    checksum_for,
+    download_parallel,
+    split_download_ranges,
+    validate_content_range,
+)
 from scripts.discover_openfreemap import newest_complete_version
 from scripts.merge_manifests import merge
 from scripts.prepare_catalog import assign_ids, candidate_id, slugify
@@ -35,6 +42,42 @@ class DiscoverTests(unittest.TestCase):
     def test_rejects_missing_pmtiles_checksum(self):
         with self.assertRaises(ValueError):
             checksum_for("a" * 64 + "  tiles.mbtiles\n", "tiles.pmtiles")
+
+    def test_splits_parallel_download_without_gaps(self):
+        self.assertEqual(split_download_ranges(10, 4), [(0, 3), (4, 7), (8, 9)])
+
+    def test_validates_exact_content_range(self):
+        validate_content_range("bytes 4-7/10", 4, 7, 10)
+        with self.assertRaises(ValueError):
+            validate_content_range("bytes 4-8/10", 4, 7, 10)
+
+    def test_parallel_range_download_writes_exact_file(self):
+        content = bytes(range(256)) * 16
+
+        class Response(io.BytesIO):
+            status = 206
+
+            def __init__(self, body, content_range):
+                super().__init__(body)
+                self.headers = {"Content-Range": content_range}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                self.close()
+
+        def urlopen(request, timeout):
+            self.assertEqual(timeout, 300)
+            start_text, end_text = request.get_header("Range").removeprefix("bytes=").split("-")
+            start, end = int(start_text), int(end_text)
+            return Response(content[start : end + 1], f"bytes {start}-{end}/{len(content)}")
+
+        with patch("scripts.cache_openfreemap.urllib.request.urlopen", side_effect=urlopen):
+            with tempfile.TemporaryDirectory() as directory:
+                destination = Path(directory) / "source.part"
+                download_parallel("https://example.test/source", destination, len(content), workers=4, chunk_size=333)
+                self.assertEqual(destination.read_bytes(), content)
 
 
 class CatalogTests(unittest.TestCase):
