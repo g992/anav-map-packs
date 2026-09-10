@@ -7,7 +7,19 @@ permissions:
   contents: read
 
 jobs:
+  discover-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      source_url: ${{ steps.source.outputs.source_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover current OpenFreeMap source
+        id: source
+        run: python3 scripts/discover_openfreemap.py --github-output "$GITHUB_OUTPUT"
+
   verify-runner:
+    needs: discover-source
     runs-on: [self-hosted, Linux, X64, ofm-builder]
     timeout-minutes: 15
     steps:
@@ -21,12 +33,9 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
       - name: Install verified PMTiles CLI
         run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
-      - name: Discover current OpenFreeMap source
-        id: source
-        run: python3 scripts/discover_openfreemap.py --github-output "$GITHUB_OUTPUT"
       - name: Probe OpenFreeMap range throughput
         env:
-          SOURCE_URL: ${{ steps.source.outputs.source_url }}
+          SOURCE_URL: ${{ needs.discover-source.outputs.source_url }}
         run: |
           set -euo pipefail
           probe="$RUNNER_TEMP/openfreemap-range.bin"
