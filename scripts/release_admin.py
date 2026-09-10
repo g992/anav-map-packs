@@ -29,6 +29,14 @@ def get_release(repo: str, tag: str) -> dict | None:
     return next((release for release in releases if release["tag_name"] == tag), None)
 
 
+def delete_release(repo: str, release: dict) -> None:
+    gh(["api", "--method", "DELETE", f"repos/{repo}/releases/{release['id']}"])
+    gh(
+        ["api", "--method", "DELETE", f"repos/{repo}/git/refs/tags/{release['tag_name']}"],
+        check=False,
+    )
+
+
 def write_output(path: str | None, key: str, value: str) -> None:
     print(f"{key}={value}")
     if path:
@@ -42,7 +50,7 @@ def prepare(args: argparse.Namespace) -> None:
         write_output(args.github_output, "skip", "true")
         return
     if existing:
-        gh(["release", "delete", args.tag, "--repo", args.repo, "--cleanup-tag", "--yes"])
+        delete_release(args.repo, existing)
     notes = (
         f"Automated regional PMTiles build from OpenFreeMap `{args.ofm_version}`.\n\n"
         "This release remains a draft until all shards and checksums pass."
@@ -75,7 +83,7 @@ def prepare(args: argparse.Namespace) -> None:
 def cleanup(args: argparse.Namespace) -> None:
     existing = get_release(args.repo, args.tag)
     if existing and existing.get("draft"):
-        gh(["release", "delete", args.tag, "--repo", args.repo, "--cleanup-tag", "--yes"])
+        delete_release(args.repo, existing)
         print(f"deleted incomplete draft {args.tag}")
 
 
@@ -102,7 +110,7 @@ def prune(args: argparse.Namespace) -> None:
         reverse=True,
     )
     for release in published[args.keep :]:
-        gh(["release", "delete", release["tag_name"], "--repo", args.repo, "--cleanup-tag", "--yes"])
+        delete_release(args.repo, release)
         print(f"pruned {release['tag_name']}")
 
 

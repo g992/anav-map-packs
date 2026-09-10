@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from scripts.build_shard import shard_for
 from scripts.cache_openfreemap import (
@@ -17,7 +17,7 @@ from scripts.discover_openfreemap import newest_complete_version
 from scripts.merge_manifests import merge
 from scripts.prepare_catalog import assign_ids, candidate_id, slugify
 from scripts.range_proxy import parse_range, split_range
-from scripts.release_admin import get_release
+from scripts.release_admin import delete_release, get_release
 
 
 class DiscoverTests(unittest.TestCase):
@@ -131,6 +131,22 @@ class ReleaseAdminTests(unittest.TestCase):
             subprocess.CompletedProcess([], 0, json.dumps([draft]), ""),
         ]
         self.assertEqual(get_release("owner/repo", "maps-test"), draft)
+
+    @patch("scripts.release_admin.gh")
+    def test_deletes_release_before_optional_tag_ref(self, gh_mock):
+        delete_release("owner/repo", {"id": 42, "tag_name": "maps-test"})
+        self.assertEqual(
+            gh_mock.call_args_list,
+            [
+                call(
+                    ["api", "--method", "DELETE", "repos/owner/repo/releases/42"]
+                ),
+                call(
+                    ["api", "--method", "DELETE", "repos/owner/repo/git/refs/tags/maps-test"],
+                    check=False,
+                ),
+            ],
+        )
 
 
 class RangeProxyTests(unittest.TestCase):
