@@ -1,0 +1,72 @@
+# ANAV regional map packs
+
+Weekly regional PMTiles snapshots derived from the public OpenFreeMap planet archive. GitHub Actions performs discovery, extraction, verification, publication and retention; no project-owned tile server is required.
+
+## Published data
+
+Each published release contains one `.pmtiles` file per catalog region, plus:
+
+- `manifest.json` with stable IDs, names, sizes, SHA-256 checksums and download URLs;
+- `catalog.json` describing the pinned boundary snapshot;
+- `SHA256SUMS` for command-line verification.
+
+The current catalog has 297 packs:
+
+| Code | Area | Packs | Boundary level |
+| --- | --- | ---: | --- |
+| `ru` | Russia | 89 | ADM1 plus six explicitly mapped entries |
+| `az` | Azerbaijan | 79 | ADM2 |
+| `am` | Armenia | 11 | ADM1 |
+| `by` | Belarus | 7 | ADM1 |
+| `kz` | Kazakhstan | 16 | ADM1 |
+| `kg` | Kyrgyzstan | 7 | ADM1 |
+| `md` | Moldova | 37 | ADM1 |
+| `tj` | Tajikistan | 5 | ADM1 |
+| `tm` | Turkmenistan | 5 | ADM1 |
+| `uz` | Uzbekistan | 14 | ADM1 |
+| `ua` | Ukraine | 27 | ADM1 |
+
+The source boundary snapshot is intentionally pinned so weekly builds cannot silently rename or move packs. It is a packaging catalog, not a statement about sovereignty. The six entries mapped into the Russian catalog are also retained in the Ukrainian source catalog, reflecting the conflicting classifications of the source systems. See [ISSUES.md](ISSUES.md) before changing this policy.
+
+## Automation
+
+`Publish weekly regional maps` runs each Monday at 06:17 UTC, after OpenFreeMap's usual weekly planet publication. It:
+
+1. selects the newest OpenFreeMap version containing both `done` and `tiles.pmtiles` markers;
+2. prepares and validates all pinned GeoJSON boundaries;
+3. creates a draft release;
+4. builds 32 deterministic shards, with at most four running concurrently;
+5. verifies every PMTiles file and rejects files at or above 1.9 GiB;
+6. publishes only when all 297 packs and checksums are present;
+7. retains the newest two published map releases.
+
+Keeping two releases means a weekly snapshot remains available during its build week and the following week. Failed runs delete their incomplete draft and never prune a valid release. Re-running a week whose release is already published is a no-op.
+
+`Live OpenFreeMap smoke test` can be started manually. It performs a real remote-range extraction of the Yerevan pack and runs `pmtiles verify`, without creating a release.
+
+## Local validation
+
+The Python control plane has no third-party dependencies:
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/prepare_catalog.py
+python3 scripts/discover_openfreemap.py
+```
+
+To make one real pack, install `pmtiles` 1.31.2 and run:
+
+```bash
+python3 scripts/build_shard.py \
+  --source https://btrfs.openfreemap.com/areas/planet/VERSION/tiles.pmtiles \
+  --region-id am-er \
+  --output-dir dist
+```
+
+## Data and attribution
+
+The automation code is MIT licensed. Map tiles and boundary data keep their source licenses. Applications using the packs must display:
+
+> © OpenMapTiles; Data © OpenStreetMap contributors
+
+See [ATTRIBUTION.md](ATTRIBUTION.md) for source links and boundary licensing details.
