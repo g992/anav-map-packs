@@ -65,6 +65,9 @@ def main() -> int:
     cache_dir.mkdir(parents=True, exist_ok=True)
     final_path = cache_dir / f"tiles-{args.version}.pmtiles"
     partial_path = cache_dir / f"tiles-{args.version}.pmtiles.part"
+    for stale_partial in cache_dir.glob("tiles-*.pmtiles.part"):
+        if stale_partial != partial_path:
+            stale_partial.unlink()
     checksum_url = args.source.rsplit("/", 1)[0] + "/SHA256SUMS"
     expected = checksum_for(fetch_text(checksum_url), "tiles.pmtiles")
 
