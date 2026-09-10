@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "boundary_revision": "9469f09592ced973a3448cf66b6100b741b64c0d",
+  "expected_total_regions": 297,
+  "sources": [
+    {"country_code": "ru", "iso3": "RUS", "level": "ADM1", "expected_count": 83},
+    {"country_code": "az", "iso3": "AZE", "level": "ADM2", "expected_count": 79},
+    {"country_code": "am", "iso3": "ARM", "level": "ADM1", "expected_count": 11},
+    {"country_code": "by", "iso3": "BLR", "level": "ADM1", "expected_count": 7},
+    {"country_code": "kz", "iso3": "KAZ", "level": "ADM1", "expected_count": 16},
+    {"country_code": "kg", "iso3": "KGZ", "level": "ADM1", "expected_count": 7},
+    {"country_code": "md", "iso3": "MDA", "level": "ADM1", "expected_count": 37},
+    {"country_code": "tj", "iso3": "TJK", "level": "ADM1", "expected_count": 5},
+    {"country_code": "tm", "iso3": "TKM", "level": "ADM1", "expected_count": 5},
+    {"country_code": "uz", "iso3": "UZB", "level": "ADM1", "expected_count": 14},
+    {"country_code": "ua", "iso3": "UKR", "level": "ADM1", "expected_count": 27}
+  ],
+  "additional_regions": [
+    {"id": "ru-crimea", "country_code": "ru", "name": "Republic of Crimea", "source_iso3": "UKR", "source_level": "ADM1", "source_name": "Autonomous Republic of Crimea"},
+    {"id": "ru-sevastopol", "country_code": "ru", "name": "Sevastopol", "source_iso3": "UKR", "source_level": "ADM1", "source_name": "Sevastopol"},
+    {"id": "ru-donetsk", "country_code": "ru", "name": "Donetsk People's Republic", "source_iso3": "UKR", "source_level": "ADM1", "source_name": "Donetsk Oblast"},
+    {"id": "ru-luhansk", "country_code": "ru", "name": "Luhansk People's Republic", "source_iso3": "UKR", "source_level": "ADM1", "source_name": "Luhansk Oblast"},
+    {"id": "ru-zaporizhzhia", "country_code": "ru", "name": "Zaporizhzhia Oblast", "source_iso3": "UKR", "source_level": "ADM1", "source_name": "Zaporizhia Oblast"},
+    {"id": "ru-kherson", "country_code": "ru", "name": "Kherson Oblast", "source_iso3": "UKR", "source_level": "ADM1", "source_name": "Kherson Oblast"}
+  ]
+}

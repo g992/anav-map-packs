@@ -1,0 +1,6 @@
+build/
+dist/
+*.pmtiles
+__pycache__/
+*.pyc
+
