@@ -1,0 +1,145 @@
+name: Publish weekly regional maps
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-regional-map-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  SHARD_COUNT: "32"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      ofm_version: ${{ steps.source.outputs.ofm_version }}
+      source_url: ${{ steps.source.outputs.source_url }}
+      release_tag: ${{ steps.source.outputs.release_tag }}
+      skip: ${{ steps.release.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prepare and validate boundary catalog
+        run: python scripts/prepare_catalog.py
+      - name: Discover latest completed OpenFreeMap archive
+        id: source
+        run: python scripts/discover_openfreemap.py --github-output "$GITHUB_OUTPUT"
+      - name: Create clean draft release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/release_admin.py prepare
+          --repo "$GITHUB_REPOSITORY"
+          --tag '${{ steps.source.outputs.release_tag }}'
+          --target "$GITHUB_SHA"
+          --ofm-version '${{ steps.source.outputs.ofm_version }}'
+      - name: Share pinned catalog with build shards
+        if: steps.release.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: boundary-catalog-${{ github.run_id }}
+          path: build
+          retention-days: 1
+          if-no-files-found: error
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: boundary-catalog-${{ github.run_id }}
+          path: build
+      - name: Install verified PMTiles CLI
+        run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
+      - name: Build, verify and upload shard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/build_shard.py
+          --source '${{ needs.prepare.outputs.source_url }}'
+          --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles"
+          --shard-index '${{ matrix.shard }}'
+          --shard-count "$SHARD_COUNT"
+          --release-tag '${{ needs.prepare.outputs.release_tag }}'
+          --repo "$GITHUB_REPOSITORY"
+          --output-dir 'dist/${{ matrix.shard }}'
+
+  finalize:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.skip != 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: boundary-catalog-${{ github.run_id }}
+          path: build
+      - name: Download shard manifests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release download '${{ needs.prepare.outputs.release_tag }}'
+          --repo "$GITHUB_REPOSITORY"
+          --pattern 'manifest-shard-*.json'
+          --dir fragments
+      - name: Require complete coverage and build public manifest
+        run: >-
+          python scripts/merge_manifests.py
+          --catalog build/catalog.json
+          --fragments 'fragments/manifest-shard-*.json'
+          --release-tag '${{ needs.prepare.outputs.release_tag }}'
+          --ofm-version '${{ needs.prepare.outputs.ofm_version }}'
+      - name: Upload index files and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload '${{ needs.prepare.outputs.release_tag }}' dist/manifest.json dist/SHA256SUMS build/catalog.json --repo "$GITHUB_REPOSITORY"
+          python scripts/release_admin.py remove-fragments --repo "$GITHUB_REPOSITORY" --tag '${{ needs.prepare.outputs.release_tag }}'
+          gh release edit '${{ needs.prepare.outputs.release_tag }}' --repo "$GITHUB_REPOSITORY" --draft=false --latest --notes-file dist/release-notes.md
+          python scripts/release_admin.py prune --repo "$GITHUB_REPOSITORY" --keep 2
+
+  cleanup-incomplete:
+    needs: [prepare, build, finalize]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.skip != 'true' &&
+      (needs.build.result != 'success' || needs.finalize.result != 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove incomplete draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python scripts/release_admin.py cleanup
+          --repo "$GITHUB_REPOSITORY"
+          --tag '${{ needs.prepare.outputs.release_tag }}'

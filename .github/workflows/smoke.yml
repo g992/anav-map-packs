@@ -1,0 +1,34 @@
+name: Live OpenFreeMap smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract-yerevan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prepare pinned boundaries
+        run: python scripts/prepare_catalog.py
+      - name: Discover latest OpenFreeMap archive
+        id: source
+        run: python scripts/discover_openfreemap.py --github-output "$GITHUB_OUTPUT"
+      - name: Install verified PMTiles CLI
+        run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
+      - name: Extract and verify Yerevan pack
+        run: >-
+          python scripts/build_shard.py
+          --source '${{ steps.source.outputs.source_url }}'
+          --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles"
+          --region-id am-er
+          --output-dir dist
+      - name: Report result
+        run: du -h dist/am-er.pmtiles
+
