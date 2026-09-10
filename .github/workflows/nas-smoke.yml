@@ -2,6 +2,11 @@ name: NAS runner smoke test
 
 on:
   workflow_dispatch:
+    inputs:
+      region_id:
+        description: Catalog region ID used for the live extraction
+        required: true
+        default: ru-mos
 
 permissions:
   contents: read
@@ -14,16 +19,29 @@ jobs:
       source_url: ${{ steps.source.outputs.source_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare exact regional boundaries
+        run: python3 scripts/prepare_catalog.py
       - name: Discover current OpenFreeMap source
         id: source
         run: python3 scripts/discover_openfreemap.py --github-output "$GITHUB_OUTPUT"
+      - name: Share boundary catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: nas-smoke-catalog-${{ github.run_id }}
+          path: build
+          retention-days: 1
+          if-no-files-found: error
 
   verify-runner:
     needs: discover-source
     runs-on: [self-hosted, Linux, X64, ofm-builder]
-    timeout-minutes: 15
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nas-smoke-catalog-${{ github.run_id }}
+          path: build
       - name: Verify isolated data volume and tools
         run: |
           id
@@ -53,9 +71,10 @@ jobs:
           bytes=$(wc -c < "$probe" 2>/dev/null || printf 0)
           printf 'OpenFreeMap direct probe: bytes=%s elapsed_seconds=%s curl_status=%s\n' "$bytes" "$elapsed" "$status"
           rm -f "$probe"
-      - name: Extract Yerevan through split-range proxy
+      - name: Extract exact region through split-range proxy
         env:
           SOURCE_URL: ${{ needs.discover-source.outputs.source_url }}
+          REGION_ID: ${{ inputs.region_id }}
         run: |
           set -euo pipefail
           proxy_log="$RUNNER_TEMP/range-proxy.log"
@@ -67,12 +86,11 @@ jobs:
             sleep 1
           done
           curl --fail --silent --head http://127.0.0.1:8765/source.pmtiles
-          "$RUNNER_TEMP/pmtiles-bin/pmtiles" extract \
-            http://127.0.0.1:8765/source.pmtiles \
-            "$RUNNER_TEMP/yerevan.pmtiles" \
-            --bbox=44.35,40.05,44.65,40.25 \
-            --maxzoom=14 \
-            --download-threads=4 \
-            --overfetch=0.05
-          "$RUNNER_TEMP/pmtiles-bin/pmtiles" verify "$RUNNER_TEMP/yerevan.pmtiles"
-          ls -lh "$RUNNER_TEMP/yerevan.pmtiles"
+          python3 scripts/build_shard.py \
+            --source http://127.0.0.1:8765/source.pmtiles \
+            --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles" \
+            --region-id "$REGION_ID" \
+            --output-dir "$RUNNER_TEMP/region" \
+            --download-threads 4 \
+            --extract-timeout-seconds 9000
+          ls -lh "$RUNNER_TEMP/region/$REGION_ID.pmtiles"
