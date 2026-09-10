@@ -46,7 +46,9 @@ Keeping two releases means a weekly snapshot remains available during its build 
 
 ### Current source blocker
 
-The same Yerevan extraction completed locally in 18 seconds, producing a verified 8.3 MB archive from 138 tiles. On 2026-09-10, GitHub Actions run `34455972382` remained inside the same extraction step for 52 minutes and ended when the hosted runner lost communication with GitHub. OpenFreeMap documents high latency for range requests against planet-scale PMTiles on Cloudflare. The scheduled trigger is intentionally disabled so it cannot launch 297 downloads until a live smoke run succeeds with a source path designed for remote PMTiles extraction.
+The same Yerevan extraction completed locally in 18 seconds, producing a verified 8.3 MB archive from 138 tiles. On 2026-09-10, [GitHub Actions run 34455972382](https://github.com/g992/anav-map-packs/actions/runs/34455972382) remained inside the same extraction step for 52 minutes and ended when the hosted runner lost communication with GitHub. OpenFreeMap documents high latency for range requests against planet-scale PMTiles on Cloudflare. The scheduled trigger is intentionally disabled so it cannot launch 297 downloads until a live smoke run succeeds with a source path designed for remote PMTiles extraction.
+
+For comparison, [Protomaps source probe 34469152600](https://github.com/g992/anav-map-packs/actions/runs/34469152600) extracted and verified the same 138 tiles in 6.16 seconds using 35 requests. That source is operationally viable, but it uses the Protomaps basemap layer schema instead of OpenFreeMap's OpenMapTiles schema, so switching it is a product compatibility decision rather than a URL-only fix.
 
 ## Local validation
 
