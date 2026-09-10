@@ -1,8 +1,8 @@
 name: Publish weekly regional maps
 
 on:
-  # Re-enable the Monday schedule after the OpenFreeMap source-read blocker in
-  # ISSUES.md has a successful live smoke test on a GitHub-hosted runner.
+  schedule:
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -61,6 +61,23 @@ jobs:
         with:
           name: boundary-catalog-${{ github.run_id }}
           path: build
+      - name: Require working VPN path to OpenFreeMap
+        env:
+          SOURCE_URL: ${{ needs.prepare.outputs.source_url }}
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/openfreemap-range.bin"
+          trap 'rm -f "$probe"' EXIT
+          printf 'VPN egress IP: '
+          curl --fail --silent --show-error --max-time 20 https://api.ipify.org
+          printf '\n'
+          curl --fail --location --show-error \
+            --connect-timeout 15 \
+            --max-time 60 \
+            --header 'Range: bytes=0-1048575' \
+            --output "$probe" \
+            "$SOURCE_URL"
+          test "$(wc -c < "$probe")" -eq 1048576
       - name: Install verified PMTiles CLI
         run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
       - name: Download and verify complete OpenFreeMap source
