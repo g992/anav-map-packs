@@ -1,0 +1,22 @@
+services:
+  runner:
+    build:
+      context: ..
+      dockerfile: nas-runner/Dockerfile
+    container_name: anav-map-packs-runner
+    restart: unless-stopped
+    environment:
+      REPO_URL: https://github.com/g992/anav-map-packs
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      RUNNER_NAME: G992-NAS-ofm
+      RUNNER_LABELS: ofm-builder
+    volumes:
+      - ${NAS_HOME}/anav-map-packs-runner:/runner
+      - ${NAS_HOME}/anav-map-packs-data:/data
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512

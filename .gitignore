@@ -3,4 +3,4 @@ dist/
 *.pmtiles
 __pycache__/
 *.pyc
-
+nas-runner/.env

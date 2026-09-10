@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from scripts.build_shard import shard_for
+from scripts.cache_openfreemap import checksum_for
 from scripts.discover_openfreemap import newest_complete_version
 from scripts.merge_manifests import merge
 from scripts.prepare_catalog import assign_ids, candidate_id, slugify
@@ -25,6 +26,14 @@ class DiscoverTests(unittest.TestCase):
     def test_rejects_incomplete_index(self):
         with self.assertRaises(ValueError):
             newest_complete_version("areas/planet/20260101_pt/done\n")
+
+    def test_selects_pmtiles_checksum(self):
+        manifest = "a" * 64 + "  tiles.mbtiles\n" + "b" * 64 + "  tiles.pmtiles\n"
+        self.assertEqual(checksum_for(manifest, "tiles.pmtiles"), "b" * 64)
+
+    def test_rejects_missing_pmtiles_checksum(self):
+        with self.assertRaises(ValueError):
+            checksum_for("a" * 64 + "  tiles.mbtiles\n", "tiles.pmtiles")
 
 
 class CatalogTests(unittest.TestCase):
@@ -69,4 +78,3 @@ class ManifestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
