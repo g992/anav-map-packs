@@ -1,0 +1,23 @@
+name: NAS runner smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-runner:
+    runs-on: [self-hosted, Linux, X64, ofm-builder]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify isolated data volume and tools
+        run: |
+          id
+          python3 --version
+          df -h /data
+          test -w /data
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+      - name: Install verified PMTiles CLI
+        run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"

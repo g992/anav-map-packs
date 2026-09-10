@@ -7,7 +7,7 @@ ARG RUNNER_GID=100
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ca-certificates curl git jq python3 \
+        ca-certificates curl gh git jq python3 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid "$RUNNER_UID" --gid "$RUNNER_GID" runner \
@@ -18,6 +18,8 @@ RUN useradd --create-home --uid "$RUNNER_UID" --gid "$RUNNER_GID" runner \
     && printf '%s  %s\n' "$RUNNER_SHA256" /tmp/actions-runner.tar.gz | sha256sum --check --status \
     && tar -xzf /tmp/actions-runner.tar.gz -C /opt/actions-runner-dist \
     && rm /tmp/actions-runner.tar.gz \
+    && /opt/actions-runner-dist/bin/installdependencies.sh \
+    && rm -rf /var/lib/apt/lists/* \
     && chown -R runner:"$RUNNER_GID" /opt/actions-runner-dist /runner /data
 
 COPY --chmod=755 nas-runner/entrypoint.sh /usr/local/bin/anav-runner-entrypoint

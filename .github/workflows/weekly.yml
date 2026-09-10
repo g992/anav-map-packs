@@ -12,9 +12,6 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  SHARD_COUNT: "32"
-
 jobs:
   prepare:
     runs-on: ubuntu-24.04
@@ -56,36 +53,36 @@ jobs:
   build:
     needs: prepare
     if: needs.prepare.outputs.skip != 'true'
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, ofm-builder]
     timeout-minutes: 360
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
           name: boundary-catalog-${{ github.run_id }}
           path: build
       - name: Install verified PMTiles CLI
         run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
-      - name: Build, verify and upload shard
+      - name: Download and verify complete OpenFreeMap source
+        id: cache
+        run: >-
+          python3 scripts/cache_openfreemap.py
+          --source '${{ needs.prepare.outputs.source_url }}'
+          --version '${{ needs.prepare.outputs.ofm_version }}'
+          --cache-dir /data/openfreemap
+          --github-output "$GITHUB_OUTPUT"
+      - name: Build, verify and upload all regional packs
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python scripts/build_shard.py
-          --source '${{ needs.prepare.outputs.source_url }}'
+          python3 scripts/build_shard.py
+          --source '${{ steps.cache.outputs.source_path }}'
           --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles"
-          --shard-index '${{ matrix.shard }}'
-          --shard-count "$SHARD_COUNT"
+          --shard-index 0
+          --shard-count 1
           --release-tag '${{ needs.prepare.outputs.release_tag }}'
           --repo "$GITHUB_REPOSITORY"
-          --output-dir 'dist/${{ matrix.shard }}'
+          --output-dir dist/0
 
   finalize:
     needs: [prepare, build]
