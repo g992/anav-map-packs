@@ -21,3 +21,28 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
       - name: Install verified PMTiles CLI
         run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
+      - name: Discover current OpenFreeMap source
+        id: source
+        run: python3 scripts/discover_openfreemap.py --github-output "$GITHUB_OUTPUT"
+      - name: Probe OpenFreeMap range throughput
+        env:
+          SOURCE_URL: ${{ steps.source.outputs.source_url }}
+        run: |
+          set -euo pipefail
+          probe="$RUNNER_TEMP/openfreemap-range.bin"
+          start=$(date +%s)
+          set +e
+          curl --fail --location --show-error \
+            --connect-timeout 15 \
+            --max-time 90 \
+            --header 'Range: bytes=0-67108863' \
+            --output "$probe" \
+            "$SOURCE_URL"
+          status=$?
+          set -e
+          elapsed=$(( $(date +%s) - start ))
+          bytes=$(wc -c < "$probe" 2>/dev/null || printf 0)
+          printf 'OpenFreeMap probe: bytes=%s elapsed_seconds=%s curl_status=%s\n' "$bytes" "$elapsed" "$status"
+          rm -f "$probe"
+          test "$status" -eq 0
+          test "$bytes" -eq 67108864
