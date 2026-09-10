@@ -42,11 +42,13 @@ The source boundary snapshot is intentionally pinned so weekly builds cannot sil
 
 Keeping two releases means a weekly snapshot remains available during its build week and the following week. Failed runs delete their incomplete draft and never prune a valid release. Re-running a week whose release is already published is a no-op.
 
-`Live OpenFreeMap smoke test` can be started manually. It performs a real remote-range extraction of the Yerevan pack and runs `pmtiles verify`, without creating a release.
+`NAS runner smoke test` can be started manually with a catalog region ID. It verifies the isolated container, records direct OpenFreeMap behavior and attempts an exact regional extraction through the diagnostic split-range proxy, without creating a release.
 
 ### Current source blocker
 
-The same Yerevan extraction completed locally in 18 seconds, producing a verified 8.3 MB archive from 138 tiles. On 2026-09-10, [GitHub Actions run 34455972382](https://github.com/g992/anav-map-packs/actions/runs/34455972382) remained inside the same extraction step for 52 minutes and ended when the hosted runner lost communication with GitHub. OpenFreeMap documents high latency for range requests against planet-scale PMTiles on Cloudflare. The scheduled trigger is intentionally disabled so it cannot launch 297 downloads until a live smoke run succeeds with a source path designed for remote PMTiles extraction.
+The same Yerevan extraction completed locally in 18 seconds, producing a verified 8.3 MB archive from 138 tiles. On 2026-09-10, [GitHub Actions run 34455972382](https://github.com/g992/anav-map-packs/actions/runs/34455972382) remained inside the same extraction step for 52 minutes and ended when the hosted runner lost communication with GitHub. OpenFreeMap documents high latency for range requests against planet-scale PMTiles on Cloudflare.
+
+The containerized NAS runner is healthy, but its route to the OpenFreeMap Cloudflare bucket stalls after roughly 20 KiB for PMTiles, MBTiles and Btrfs objects. A diagnostic proxy that splits reads into small ranges [successfully built and verified Yerevan](https://github.com/g992/anav-map-packs/actions/runs/34480674217) in 14.6 seconds. A representative Moscow Oblast build reached 51 of 202 MB before some of its tens of thousands of 4 KiB requests exhausted TLS retries in [run 34482314250](https://github.com/g992/anav-map-packs/actions/runs/34482314250). The scheduled trigger remains disabled until the NAS uses a reliable VPN or trusted proxy route and passes both direct-range and representative-region tests.
 
 For comparison, [Protomaps source probe 34469152600](https://github.com/g992/anav-map-packs/actions/runs/34469152600) extracted and verified the same 138 tiles in 6.16 seconds using 35 requests. That source is operationally viable, but it uses the Protomaps basemap layer schema instead of OpenFreeMap's OpenMapTiles schema, so switching it is a product compatibility decision rather than a URL-only fix.
 
