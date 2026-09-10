@@ -1,0 +1,30 @@
+services:
+  vpn:
+    build:
+      context: ..
+      dockerfile: nas-runner/vpn-adguard/Dockerfile
+    container_name: anav-map-packs-vpn
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ADGUARD_VPN_LOCATION: ${ADGUARD_VPN_LOCATION:-Netherlands}
+      ADGUARD_VPN_USE_QUIC: ${ADGUARD_VPN_USE_QUIC:-off}
+    volumes:
+      - ${ADGUARD_VPN_STATE_DIR}:/root/.local/share/adguardvpn-cli
+    healthcheck:
+      test: ["CMD-SHELL", "adguardvpn-cli status | grep -Eqi '(^|[[:space:]])Connected([[:space:]]|$)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 20s
+
+  runner:
+    network_mode: service:vpn
+    depends_on:
+      vpn:
+        condition: service_healthy

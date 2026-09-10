@@ -52,3 +52,38 @@ The VPN container is granted `NET_ADMIN`, which strongSwan requires to install
 IPsec policies. The runner keeps its existing non-root user, dropped Linux
 capabilities and restricted mounts. It starts only after the VPN reports an
 established `adguard` connection.
+
+## Isolated AdGuard VPN CLI route
+
+AdGuard documents that its IKEv2 profile may be unavailable in Russia and
+other filtered networks. `compose.adguard.yaml` uses the official AdGuard VPN
+CLI release and its HTTPS-like protocol instead. Only the runner shares the VPN
+container's network namespace; the NAS host route remains unchanged.
+
+Create the persistent authentication directory and start the overlay:
+
+```bash
+mkdir -p /volume2/homes/G992/anav-map-packs-adguard-state
+chmod 700 /volume2/homes/G992/anav-map-packs-adguard-state
+sudo /usr/local/bin/docker-compose \
+  --env-file .env \
+  -f compose.yaml \
+  -f compose.adguard.yaml \
+  up -d --build
+```
+
+On its first start the VPN waits for account authentication. Run the login
+helper, follow the displayed browser link, then restart the stack:
+
+```bash
+sudo /usr/local/bin/docker exec -it anav-map-packs-vpn anav-adguard-login
+sudo /usr/local/bin/docker-compose \
+  --env-file .env \
+  -f compose.yaml \
+  -f compose.adguard.yaml \
+  restart
+```
+
+The state directory contains the AdGuard account token. Keep it private and do
+not add it to Git. The router-specific IKEv2 username and password are not used
+by AdGuard VPN CLI.
