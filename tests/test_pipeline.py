@@ -8,6 +8,7 @@ from scripts.cache_openfreemap import checksum_for
 from scripts.discover_openfreemap import newest_complete_version
 from scripts.merge_manifests import merge
 from scripts.prepare_catalog import assign_ids, candidate_id, slugify
+from scripts.range_proxy import parse_range, split_range
 
 
 class DiscoverTests(unittest.TestCase):
@@ -74,6 +75,20 @@ class ManifestTests(unittest.TestCase):
         fragments = [{"shard_count": 1, "shard_index": 0, "regions": []}]
         with self.assertRaises(ValueError):
             merge(catalog, fragments, "maps-test", "test")
+
+
+class RangeProxyTests(unittest.TestCase):
+    def test_parses_bounded_and_open_ranges(self):
+        self.assertEqual(parse_range("bytes=10-19", 100), (10, 19))
+        self.assertEqual(parse_range("bytes=90-", 100), (90, 99))
+
+    def test_rejects_invalid_ranges(self):
+        for value in (None, "bytes=-10", "bytes=20-10", "bytes=0-100", "bytes=0-1,4-5"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                parse_range(value, 100)
+
+    def test_splits_inclusive_range_without_gaps(self):
+        self.assertEqual(split_range(10, 30, 8), [(10, 17), (18, 25), (26, 30)])
 
 
 if __name__ == "__main__":

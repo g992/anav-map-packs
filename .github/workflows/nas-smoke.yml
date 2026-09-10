@@ -43,15 +43,36 @@ jobs:
           set +e
           curl --fail --location --show-error \
             --connect-timeout 15 \
-            --max-time 90 \
-            --header 'Range: bytes=0-67108863' \
+            --max-time 15 \
+            --header 'Range: bytes=0-1048575' \
             --output "$probe" \
             "$SOURCE_URL"
           status=$?
           set -e
           elapsed=$(( $(date +%s) - start ))
           bytes=$(wc -c < "$probe" 2>/dev/null || printf 0)
-          printf 'OpenFreeMap probe: bytes=%s elapsed_seconds=%s curl_status=%s\n' "$bytes" "$elapsed" "$status"
+          printf 'OpenFreeMap direct probe: bytes=%s elapsed_seconds=%s curl_status=%s\n' "$bytes" "$elapsed" "$status"
           rm -f "$probe"
-          test "$status" -eq 0
-          test "$bytes" -eq 67108864
+      - name: Extract Yerevan through split-range proxy
+        env:
+          SOURCE_URL: ${{ needs.discover-source.outputs.source_url }}
+        run: |
+          set -euo pipefail
+          proxy_log="$RUNNER_TEMP/range-proxy.log"
+          python3 scripts/range_proxy.py --source "$SOURCE_URL" > "$proxy_log" 2>&1 &
+          proxy_pid=$!
+          trap 'kill "$proxy_pid" 2>/dev/null || true; wait "$proxy_pid" 2>/dev/null || true; cat "$proxy_log"' EXIT
+          for attempt in $(seq 1 30); do
+            curl --fail --silent --head http://127.0.0.1:8765/source.pmtiles && break
+            sleep 1
+          done
+          curl --fail --silent --head http://127.0.0.1:8765/source.pmtiles
+          "$RUNNER_TEMP/pmtiles-bin/pmtiles" extract \
+            http://127.0.0.1:8765/source.pmtiles \
+            "$RUNNER_TEMP/yerevan.pmtiles" \
+            --bbox=44.35,40.05,44.65,40.25 \
+            --maxzoom=14 \
+            --download-threads=4 \
+            --overfetch=0.05
+          "$RUNNER_TEMP/pmtiles-bin/pmtiles" verify "$RUNNER_TEMP/yerevan.pmtiles"
+          ls -lh "$RUNNER_TEMP/yerevan.pmtiles"
