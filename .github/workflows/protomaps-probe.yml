@@ -1,0 +1,31 @@
+name: Protomaps source probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract-yerevan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prepare pinned boundaries
+        run: python scripts/prepare_catalog.py
+      - name: Install verified PMTiles CLI
+        run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
+      - name: Extract and verify Yerevan pack
+        run: >-
+          python scripts/build_shard.py
+          --source https://data.source.coop/protomaps/openstreetmap/v4.pmtiles
+          --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles"
+          --region-id am-er
+          --extract-timeout-seconds 900
+          --output-dir dist
+      - name: Report result
+        run: du -h dist/am-er.pmtiles
