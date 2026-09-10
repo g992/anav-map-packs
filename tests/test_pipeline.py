@@ -17,7 +17,7 @@ from scripts.discover_openfreemap import newest_complete_version
 from scripts.merge_manifests import merge
 from scripts.prepare_catalog import assign_ids, candidate_id, slugify
 from scripts.range_proxy import parse_range, split_range
-from scripts.release_admin import delete_release, get_release
+from scripts.release_admin import delete_release, get_release, release_assets
 
 
 class DiscoverTests(unittest.TestCase):
@@ -147,6 +147,17 @@ class ReleaseAdminTests(unittest.TestCase):
                 ),
             ],
         )
+
+    @patch("scripts.release_admin.gh")
+    def test_collects_all_release_asset_pages(self, gh_mock):
+        first_page = [{"id": index} for index in range(100)]
+        second_page = [{"id": 100}]
+        gh_mock.side_effect = [
+            subprocess.CompletedProcess([], 0, json.dumps(first_page), ""),
+            subprocess.CompletedProcess([], 0, json.dumps(second_page), ""),
+        ]
+        self.assertEqual(len(release_assets("owner/repo", 42)), 101)
+        self.assertIn("page=2", gh_mock.call_args_list[1].args[0][-1])
 
 
 class RangeProxyTests(unittest.TestCase):

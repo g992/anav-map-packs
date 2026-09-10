@@ -37,6 +37,24 @@ def delete_release(repo: str, release: dict) -> None:
     )
 
 
+def release_assets(repo: str, release_id: int) -> list[dict]:
+    assets: list[dict] = []
+    page = 1
+    while True:
+        batch = json.loads(
+            gh(
+                [
+                    "api",
+                    f"repos/{repo}/releases/{release_id}/assets?per_page=100&page={page}",
+                ]
+            ).stdout
+        )
+        assets.extend(batch)
+        if len(batch) < 100:
+            return assets
+        page += 1
+
+
 def write_output(path: str | None, key: str, value: str) -> None:
     print(f"{key}={value}")
     if path:
@@ -91,7 +109,7 @@ def remove_fragments(args: argparse.Namespace) -> None:
     existing = get_release(args.repo, args.tag)
     if not existing:
         raise ValueError(f"release {args.tag} not found")
-    assets = json.loads(gh(["api", f"repos/{args.repo}/releases/{existing['id']}/assets?per_page=100"]).stdout)
+    assets = release_assets(args.repo, existing["id"])
     for asset in assets:
         if asset["name"].startswith("manifest-shard-"):
             gh(["api", "--method", "DELETE", f"repos/{args.repo}/releases/assets/{asset['id']}"])
