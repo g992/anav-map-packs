@@ -1,0 +1,21 @@
+config setup
+  uniqueids=no
+
+conn adguard
+  keyexchange=ikev2
+  type=tunnel
+  auto=start
+  left=%defaultroute
+  leftauth=eap-mschapv2
+  leftsourceip=%config
+  leftid=REPLACE_WITH_GENERATED_USERNAME
+  eap_identity=REPLACE_WITH_GENERATED_USERNAME
+  right=REPLACE_WITH_SERVER_IP
+  rightid=REPLACE_WITH_REMOTE_SERVER_ID
+  rightauth=pubkey
+  rightsubnet=0.0.0.0/0
+  fragmentation=yes
+  mobike=no
+  dpdaction=restart
+  dpddelay=30s
+  closeaction=restart

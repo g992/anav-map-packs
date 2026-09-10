@@ -32,3 +32,23 @@ value in `.env`. Persistent registration is stored in
 Do not add the self-hosted label to workflows triggered by `pull_request`.
 GitHub recommends against attaching self-hosted runners to public repositories;
 this container reduces host exposure but does not remove repository-token risk.
+
+## Optional isolated IKEv2 route
+
+`compose.vpn.yaml` adds a strongSwan IKEv2 client and places only the Actions
+runner in its network namespace. It does not change the NAS host route. Store
+`ipsec.conf`, `ipsec.secrets` and the provider CA certificate outside the Git
+checkout in `${VPN_CONFIG_DIR}`. Start the overlay with:
+
+```bash
+sudo /usr/local/bin/docker-compose \
+  --env-file .env \
+  -f compose.yaml \
+  -f compose.vpn.yaml \
+  up -d --build
+```
+
+The VPN container is granted `NET_ADMIN`, which strongSwan requires to install
+IPsec policies. The runner keeps its existing non-root user, dropped Linux
+capabilities and restricted mounts. It starts only after the VPN reports an
+established `adguard` connection.
