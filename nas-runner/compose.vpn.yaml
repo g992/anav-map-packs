@@ -14,7 +14,7 @@ services:
       - ${VPN_CONFIG_DIR}/ipsec.secrets:/etc/ipsec.secrets:ro
       - ${VPN_CONFIG_DIR}/comodo.crt:/etc/ipsec.d/cacerts/comodo.crt:ro
     healthcheck:
-      test: ["CMD-SHELL", "ipsec statusall | grep -q 'ESTABLISHED.*adguard'"]
+      test: ["CMD-SHELL", "ipsec statusall | grep -q 'adguard.*ESTABLISHED'"]
       interval: 10s
       timeout: 5s
       retries: 12
