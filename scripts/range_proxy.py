@@ -143,7 +143,7 @@ def main() -> int:
     parser.add_argument("--source", required=True)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--chunk-size", type=int, default=8192)
+    parser.add_argument("--chunk-size", type=int, default=4096)
     parser.add_argument("--workers", type=int, default=64)
     parser.add_argument("--retries", type=int, default=3)
     args = parser.parse_args()
