@@ -23,9 +23,10 @@ def gh(command: list[str], *, check: bool = True) -> subprocess.CompletedProcess
 
 def get_release(repo: str, tag: str) -> dict | None:
     result = gh(["api", f"repos/{repo}/releases/tags/{tag}"], check=False)
-    if result.returncode:
-        return None
-    return json.loads(result.stdout)
+    if not result.returncode:
+        return json.loads(result.stdout)
+    releases = json.loads(gh(["api", f"repos/{repo}/releases?per_page=100"]).stdout)
+    return next((release for release in releases if release["tag_name"] == tag), None)
 
 
 def write_output(path: str | None, key: str, value: str) -> None:
@@ -138,4 +139,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
