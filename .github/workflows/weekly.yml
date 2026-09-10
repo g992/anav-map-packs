@@ -50,17 +50,15 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  build:
+  cache_source:
     needs: prepare
     if: needs.prepare.outputs.skip != 'true'
     runs-on: [self-hosted, Linux, X64, ofm-builder]
     timeout-minutes: 360
+    outputs:
+      source_path: ${{ steps.cache.outputs.source_path }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: boundary-catalog-${{ github.run_id }}
-          path: build
       - name: Require working VPN path to OpenFreeMap
         env:
           SOURCE_URL: ${{ needs.prepare.outputs.source_url }}
@@ -78,8 +76,6 @@ jobs:
             --output "$probe" \
             "$SOURCE_URL"
           test "$(wc -c < "$probe")" -eq 1048576
-      - name: Install verified PMTiles CLI
-        run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
       - name: Download and verify complete OpenFreeMap source
         id: cache
         run: >-
@@ -88,12 +84,26 @@ jobs:
           --version '${{ needs.prepare.outputs.ofm_version }}'
           --cache-dir /data/openfreemap
           --github-output "$GITHUB_OUTPUT"
+
+  build:
+    needs: [prepare, cache_source]
+    if: needs.prepare.outputs.skip != 'true' && needs.cache_source.result == 'success'
+    runs-on: [self-hosted, Linux, X64, ofm-builder]
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: boundary-catalog-${{ github.run_id }}
+          path: build
+      - name: Install verified PMTiles CLI
+        run: ./scripts/install_pmtiles_linux.sh "$RUNNER_TEMP/pmtiles-bin"
       - name: Build, verify and upload all regional packs
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           python3 scripts/build_shard.py
-          --source '${{ steps.cache.outputs.source_path }}'
+          --source '${{ needs.cache_source.outputs.source_path }}'
           --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles"
           --shard-index 0
           --shard-count 1
@@ -140,12 +150,14 @@ jobs:
           python scripts/release_admin.py prune --repo "$GITHUB_REPOSITORY" --keep 2
 
   cleanup-incomplete:
-    needs: [prepare, build, finalize]
+    needs: [prepare, cache_source, build, finalize]
     if: >-
       always() &&
       needs.prepare.result == 'success' &&
       needs.prepare.outputs.skip != 'true' &&
-      (needs.build.result != 'success' || needs.finalize.result != 'success')
+      (needs.cache_source.result != 'success' ||
+      needs.build.result != 'success' ||
+      needs.finalize.result != 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
