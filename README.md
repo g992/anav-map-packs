@@ -1,6 +1,6 @@
 # ANAV regional map packs
 
-Weekly regional PMTiles snapshots derived from the public OpenFreeMap planet archive. GitHub Actions performs discovery, extraction, verification, publication and retention; no project-owned tile server is required.
+Regional PMTiles snapshot automation derived from the public OpenFreeMap planet archive. GitHub Actions performs discovery, extraction, verification, publication and retention; no project-owned tile server is required.
 
 ## Published data
 
@@ -30,7 +30,7 @@ The source boundary snapshot is intentionally pinned so weekly builds cannot sil
 
 ## Automation
 
-`Publish weekly regional maps` runs each Monday at 06:17 UTC, after OpenFreeMap's usual weekly planet publication. It:
+`Publish weekly regional maps` is currently manual while the OpenFreeMap source-read blocker below is unresolved. Once the Monday 06:17 UTC schedule is re-enabled, it will:
 
 1. selects the newest OpenFreeMap version containing both `done` and `tiles.pmtiles` markers;
 2. prepares and validates all pinned GeoJSON boundaries;
@@ -43,6 +43,10 @@ The source boundary snapshot is intentionally pinned so weekly builds cannot sil
 Keeping two releases means a weekly snapshot remains available during its build week and the following week. Failed runs delete their incomplete draft and never prune a valid release. Re-running a week whose release is already published is a no-op.
 
 `Live OpenFreeMap smoke test` can be started manually. It performs a real remote-range extraction of the Yerevan pack and runs `pmtiles verify`, without creating a release.
+
+### Current source blocker
+
+The same Yerevan extraction completed locally in 18 seconds, producing a verified 8.3 MB archive from 138 tiles. On 2026-09-10, GitHub Actions run `34455972382` remained inside the same extraction step for 52 minutes and ended when the hosted runner lost communication with GitHub. OpenFreeMap documents high latency for range requests against planet-scale PMTiles on Cloudflare. The scheduled trigger is intentionally disabled so it cannot launch 297 downloads until a live smoke run succeeds with a source path designed for remote PMTiles extraction.
 
 ## Local validation
 

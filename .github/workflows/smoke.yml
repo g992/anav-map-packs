@@ -9,7 +9,7 @@ permissions:
 jobs:
   extract-yerevan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,7 +28,7 @@ jobs:
           --source '${{ steps.source.outputs.source_url }}'
           --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles"
           --region-id am-er
+          --extract-timeout-seconds 900
           --output-dir dist
       - name: Report result
         run: du -h dist/am-er.pmtiles
-

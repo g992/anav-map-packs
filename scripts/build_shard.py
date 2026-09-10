@@ -29,9 +29,9 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def checked(command: list[str]) -> None:
+def checked(command: list[str], *, timeout_seconds: int | None = None) -> None:
     print("+", " ".join(command), flush=True)
-    subprocess.run(command, check=True)
+    subprocess.run(command, check=True, timeout=timeout_seconds)
 
 
 def selected_regions(catalog: dict, shard_index: int, shard_count: int, region_id: str | None) -> list[dict]:
@@ -53,6 +53,7 @@ def main() -> int:
     parser.add_argument("--pmtiles", default="pmtiles")
     parser.add_argument("--maxzoom", type=int, default=14)
     parser.add_argument("--download-threads", type=int, default=4)
+    parser.add_argument("--extract-timeout-seconds", type=int, default=2700)
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
     parser.add_argument("--region-id")
@@ -62,6 +63,8 @@ def main() -> int:
 
     if args.shard_count < 1 or args.shard_index not in range(args.shard_count):
         raise ValueError("invalid shard index/count")
+    if args.extract_timeout_seconds < 1:
+        raise ValueError("--extract-timeout-seconds must be positive")
     if args.release_tag and not args.repo:
         raise ValueError("--repo is required when uploading to a release")
 
@@ -89,7 +92,7 @@ def main() -> int:
             "--overfetch=0.05",
         ]
         try:
-            checked(command)
+            checked(command, timeout_seconds=args.extract_timeout_seconds)
             checked([args.pmtiles, "verify", str(output)])
             size = output.stat().st_size
             if size <= 0:
@@ -133,4 +136,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
