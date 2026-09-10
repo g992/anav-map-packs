@@ -16,7 +16,7 @@ fi
 adguardvpn-cli config set-mode TUN
 adguardvpn-cli config set-change-system-dns off
 adguardvpn-cli config set-tun-routing-mode AUTO
-adguardvpn-cli config set-use-quic "${ADGUARD_VPN_USE_QUIC:-off}"
+adguardvpn-cli config set-protocol "${ADGUARD_VPN_PROTOCOL:-http2}"
 adguardvpn-cli config set-show-hints off
 
 exec adguardvpn-cli connect \

@@ -13,7 +13,7 @@ services:
       - no-new-privileges:true
     environment:
       ADGUARD_VPN_LOCATION: ${ADGUARD_VPN_LOCATION:-Netherlands}
-      ADGUARD_VPN_USE_QUIC: ${ADGUARD_VPN_USE_QUIC:-off}
+      ADGUARD_VPN_PROTOCOL: ${ADGUARD_VPN_PROTOCOL:-http2}
     volumes:
       - ${ADGUARD_VPN_STATE_DIR}:/root/.local/share/adguardvpn-cli
     healthcheck:
