@@ -56,38 +56,30 @@ jobs:
           SOURCE_URL: ${{ needs.discover-source.outputs.source_url }}
         run: |
           set -euo pipefail
+          printf 'VPN egress IP: '
+          curl --fail --silent --show-error --max-time 20 https://api.ipify.org
+          printf '\n'
           probe="$RUNNER_TEMP/openfreemap-range.bin"
           start=$(date +%s)
-          set +e
           curl --fail --location --show-error \
             --connect-timeout 15 \
-            --max-time 15 \
+            --max-time 60 \
             --header 'Range: bytes=0-1048575' \
             --output "$probe" \
             "$SOURCE_URL"
-          status=$?
-          set -e
           elapsed=$(( $(date +%s) - start ))
-          bytes=$(wc -c < "$probe" 2>/dev/null || printf 0)
-          printf 'OpenFreeMap direct probe: bytes=%s elapsed_seconds=%s curl_status=%s\n' "$bytes" "$elapsed" "$status"
+          bytes=$(wc -c < "$probe")
+          printf 'OpenFreeMap direct probe: bytes=%s elapsed_seconds=%s\n' "$bytes" "$elapsed"
+          test "$bytes" -eq 1048576
           rm -f "$probe"
-      - name: Extract exact region through split-range proxy
+      - name: Extract exact region directly through VPN
         env:
           SOURCE_URL: ${{ needs.discover-source.outputs.source_url }}
           REGION_ID: ${{ inputs.region_id }}
         run: |
           set -euo pipefail
-          proxy_log="$RUNNER_TEMP/range-proxy.log"
-          python3 scripts/range_proxy.py --source "$SOURCE_URL" > "$proxy_log" 2>&1 &
-          proxy_pid=$!
-          trap 'kill "$proxy_pid" 2>/dev/null || true; wait "$proxy_pid" 2>/dev/null || true; cat "$proxy_log"' EXIT
-          for attempt in $(seq 1 30); do
-            curl --fail --silent --head http://127.0.0.1:8765/source.pmtiles && break
-            sleep 1
-          done
-          curl --fail --silent --head http://127.0.0.1:8765/source.pmtiles
           python3 scripts/build_shard.py \
-            --source http://127.0.0.1:8765/source.pmtiles \
+            --source "$SOURCE_URL" \
             --pmtiles "$RUNNER_TEMP/pmtiles-bin/pmtiles" \
             --region-id "$REGION_ID" \
             --output-dir "$RUNNER_TEMP/region" \
