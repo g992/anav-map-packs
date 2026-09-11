@@ -87,3 +87,27 @@ sudo /usr/local/bin/docker-compose \
 The state directory contains the AdGuard account token. Keep it private and do
 not add it to Git. The router-specific IKEv2 username and password are not used
 by AdGuard VPN CLI.
+
+## Daily watchdog
+
+`watchdog.sh` verifies that both containers are running, the VPN is healthy,
+the runner route uses `tun0`, and GitHub plus the runner's current Actions
+endpoint are reachable through the tunnel. It restarts the VPN and runner only
+when one of those checks fails. Logs are written to
+`/volume2/homes/G992/anav-map-packs-watchdog.log` and rotate at 1 MiB.
+
+Install the root cron entry once on the NAS:
+
+```bash
+cd /volume2/homes/G992/anav-map-packs-builder/nas-runner
+sudo ./install-watchdog-cron.sh
+```
+
+The check runs daily at 08:30 NAS local time, shortly before the Monday 09:17
+weekly build. The installer is idempotent and keeps a timestamped backup of
+`/etc/crontab`. Run an immediate check or force a clean reconnect with:
+
+```bash
+sudo ./watchdog.sh
+sudo ./watchdog.sh --force
+```
