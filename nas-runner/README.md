@@ -103,7 +103,7 @@ cd /volume2/homes/G992/anav-map-packs-builder/nas-runner
 sudo ./install-watchdog-cron.sh
 ```
 
-The check runs daily at 08:30 NAS local time, shortly before the Monday 09:17
+The check runs daily at 09:05 NAS local time, shortly before the Monday 09:17
 weekly build. The installer is idempotent and keeps a timestamped backup of
 `/etc/crontab`. Run an immediate check or force a clean reconnect with:
 

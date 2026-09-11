@@ -5,7 +5,7 @@ NAS_HOME="${NAS_HOME:-/volume2/homes/G992}"
 WATCHDOG="$NAS_HOME/anav-map-packs-builder/nas-runner/watchdog.sh"
 CRONTAB_FILE="${CRONTAB_FILE:-/etc/crontab}"
 MARKER="# anav-map-packs-watchdog"
-SCHEDULE="${WATCHDOG_SCHEDULE:-30 8 * * *}"
+SCHEDULE="${WATCHDOG_SCHEDULE:-5 9 * * *}"
 
 if (( EUID != 0 )); then
   echo "Run this installer with sudo." >&2
@@ -40,7 +40,7 @@ if [[ -n "$crond_pid" ]]; then
   kill -HUP "${crond_pid%% *}" 2>/dev/null || true
 fi
 
-echo "Installed daily watchdog at 08:30 local time."
+echo "Installed daily watchdog at 09:05 local time."
 echo "Backup: $backup"
 echo "Running the first check now..."
 "$WATCHDOG"
