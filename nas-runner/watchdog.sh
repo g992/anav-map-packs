@@ -82,12 +82,6 @@ runner_session_ok() {
 
 runner_connectivity_ok() {
   runner_is_running || return 1
-  docker exec "$RUNNER_CONTAINER" sh -c \
-    "ip -4 route get 1.1.1.1 | grep -Eq 'dev tun0([[:space:]]|$)'" \
-    >/dev/null 2>&1 || return 1
-  docker exec "$RUNNER_CONTAINER" curl -4 -sS -o /dev/null \
-    --connect-timeout 10 --max-time 20 https://github.com/ \
-    >/dev/null 2>&1 || return 1
   runner_session_ok
 }
 

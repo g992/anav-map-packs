@@ -90,10 +90,10 @@ by AdGuard VPN CLI.
 
 ## Daily watchdog
 
-`watchdog.sh` verifies that both containers are running, the VPN is healthy,
-the runner route uses `tun0`, GitHub is reachable through the tunnel, and the
-runner has an active Actions session. It restarts the VPN and runner only when
-one of those checks fails. Logs are written to
+`watchdog.sh` verifies that both containers are running, the VPN health check
+confirms a `tun0` route and public egress, and the runner has an active Actions
+session. It restarts the VPN and runner only when one of those checks fails.
+Logs are written to
 `/volume2/homes/G992/anav-map-packs-watchdog.log` and rotate at 1 MiB.
 
 Install the root cron entry once on the NAS:
