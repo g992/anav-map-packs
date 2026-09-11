@@ -66,19 +66,21 @@ runner_is_running() {
   [[ "$(docker inspect --format '{{.State.Status}}' "$RUNNER_CONTAINER" 2>/dev/null)" == "running" ]]
 }
 
-actions_endpoint() {
-  local endpoint
-  endpoint=$(
-    grep -rhoE 'https://[[:alnum:].-]+\.actions\.githubusercontent\.com' \
-      "$RUNNER_STATE_DIR"/_diag/Runner_*.log 2>/dev/null \
+runner_session_ok() {
+  local latest_log last_event
+  latest_log=$(ls -1t "$RUNNER_STATE_DIR"/_diag/Runner_*.log 2>/dev/null | head -n 1)
+  [[ -n "$latest_log" ]] || return 1
+
+  last_event=$(
+    grep -E \
+      'Listening for Jobs|Session created\.|Retriable exception|Catch exception during create session|Runner connect error' \
+      "$latest_log" 2>/dev/null \
       | tail -n 1
   )
-  printf '%s' "$endpoint"
+  [[ "$last_event" == *"Listening for Jobs"* || "$last_event" == *"Session created."* ]]
 }
 
 runner_connectivity_ok() {
-  local endpoint
-
   runner_is_running || return 1
   docker exec "$RUNNER_CONTAINER" sh -c \
     "ip -4 route get 1.1.1.1 | grep -Eq 'dev tun0([[:space:]]|$)'" \
@@ -86,15 +88,7 @@ runner_connectivity_ok() {
   docker exec "$RUNNER_CONTAINER" curl -4 -sS -o /dev/null \
     --connect-timeout 10 --max-time 20 https://github.com/ \
     >/dev/null 2>&1 || return 1
-
-  endpoint=$(actions_endpoint)
-  if [[ -n "$endpoint" ]]; then
-    # The root path normally returns 404. Curl still exits successfully when
-    # DNS, TCP and TLS work, which is the connectivity signal we need here.
-    docker exec "$RUNNER_CONTAINER" curl -4 -sS -o /dev/null \
-      --connect-timeout 10 --max-time 20 "$endpoint/" \
-      >/dev/null 2>&1 || return 1
-  fi
+  runner_session_ok
 }
 
 stack_is_healthy() {
