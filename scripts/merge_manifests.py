@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,6 +30,24 @@ def merge(catalog: dict, fragments: list[dict], release_tag: str, ofm_version: s
         missing = sorted(expected_ids - set(actual_ids))
         extra = sorted(set(actual_ids) - expected_ids)
         raise ValueError(f"release coverage mismatch; missing={missing}, extra={extra}")
+    catalog_by_id = {region["id"]: region for region in catalog["regions"]}
+    for region in regions:
+        bbox = catalog_by_id[region["id"]].get("bbox")
+        if (
+            not isinstance(bbox, list)
+            or len(bbox) != 4
+            or not all(
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+                for value in bbox
+            )
+            or not -180.0 <= bbox[0] <= 180.0
+            or not -90.0 <= bbox[1] <= bbox[3] <= 90.0
+            or not -180.0 <= bbox[2] <= 180.0
+        ):
+            raise ValueError(f"catalog region {region['id']} has an invalid bbox")
+        region["bbox"] = bbox
     return {
         "schema_version": 1,
         "release_tag": release_tag,
@@ -78,4 +97,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -6,7 +6,7 @@ Regional PMTiles snapshot automation derived from the public OpenFreeMap planet 
 
 Each published release contains one `.pmtiles` file per catalog region, plus:
 
-- `manifest.json` with stable IDs, names, sizes, SHA-256 checksums and download URLs;
+- `manifest.json` with stable IDs, names, bounding boxes, sizes, SHA-256 checksums and download URLs;
 - `catalog.json` describing the pinned boundary snapshot;
 - `SHA256SUMS` for command-line verification.
 

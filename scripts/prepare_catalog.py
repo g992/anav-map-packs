@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import time
 import unicodedata
@@ -62,6 +63,72 @@ def assign_ids(country_code: str, features: list[dict]) -> list[str]:
     if len(ids) != len(set(ids)):
         raise ValueError(f"region IDs are not unique for {country_code}")
     return ids
+
+
+def geometry_bbox(geometry: dict) -> list[float]:
+    """Return a GeoJSON bbox as [west, south, east, north].
+
+    The shortest longitude interval is used, so a region crossing the
+    antimeridian is represented with west > east instead of a near-global box.
+    """
+
+    positions: list[tuple[float, float]] = []
+
+    def collect(value: object) -> None:
+        if not isinstance(value, list):
+            return
+        if (
+            len(value) >= 2
+            and isinstance(value[0], (int, float))
+            and not isinstance(value[0], bool)
+            and isinstance(value[1], (int, float))
+            and not isinstance(value[1], bool)
+        ):
+            longitude = float(value[0])
+            latitude = float(value[1])
+            if not math.isfinite(longitude) or not math.isfinite(latitude):
+                raise ValueError("geometry contains a non-finite position")
+            if not -90.0 <= latitude <= 90.0:
+                raise ValueError("geometry contains an invalid latitude")
+            if -180.0 <= longitude <= 180.0:
+                normalized = longitude
+            else:
+                normalized = (longitude + 180.0) % 360.0 - 180.0
+            positions.append((normalized, latitude))
+            return
+        for item in value:
+            collect(item)
+
+    if geometry.get("type") == "GeometryCollection":
+        for child in geometry.get("geometries", []):
+            child_bbox = geometry_bbox(child)
+            collect(
+                [
+                    [child_bbox[0], child_bbox[1]],
+                    [child_bbox[2], child_bbox[3]],
+                ]
+            )
+    else:
+        collect(geometry.get("coordinates"))
+
+    if not positions:
+        raise ValueError("geometry contains no positions")
+
+    longitudes = sorted({position[0] for position in positions})
+    if len(longitudes) == 1:
+        west = east = longitudes[0]
+    else:
+        gaps = [
+            (longitudes[index + 1] - longitudes[index], index)
+            for index in range(len(longitudes) - 1)
+        ]
+        gaps.append((longitudes[0] + 360.0 - longitudes[-1], len(longitudes) - 1))
+        _, gap_index = max(gaps)
+        west = longitudes[(gap_index + 1) % len(longitudes)]
+        east = longitudes[gap_index]
+
+    latitudes = [position[1] for position in positions]
+    return [west, min(latitudes), east, max(latitudes)]
 
 
 def load_sources(config: dict) -> tuple[dict[tuple[str, str], list[dict]], list[dict]]:
@@ -177,6 +244,7 @@ def write_region(
         "id": region_id,
         "country_code": country_code,
         "name": name,
+        "bbox": geometry_bbox(feature["geometry"]),
         "boundary": output_name,
         "source_iso3": source_iso3,
         "source_level": source_level,
@@ -204,4 +272,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

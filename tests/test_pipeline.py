@@ -15,7 +15,7 @@ from scripts.cache_openfreemap import (
 )
 from scripts.discover_openfreemap import newest_complete_version
 from scripts.merge_manifests import merge
-from scripts.prepare_catalog import assign_ids, candidate_id, slugify
+from scripts.prepare_catalog import assign_ids, candidate_id, geometry_bbox, slugify
 from scripts.range_proxy import parse_range, split_range
 from scripts.release_admin import delete_release, get_release, release_assets
 
@@ -101,12 +101,36 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(shard_for("am-er", 32), shard_for("am-er", 32))
         self.assertIn(shard_for("am-er", 32), range(32))
 
+    def test_computes_bbox_for_nested_geometry(self):
+        geometry = {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [[[2.5, 8], [10, -3], [2.5, 8]]],
+                [[[-2.5, 4], [4, 6], [-2.5, 4]]],
+            ],
+        }
+        self.assertEqual(geometry_bbox(geometry), [-2.5, -3.0, 10.0, 8.0])
+
+    def test_rejects_geometry_without_positions(self):
+        with self.assertRaises(ValueError):
+            geometry_bbox({"type": "Polygon", "coordinates": []})
+
+    def test_bbox_uses_short_interval_across_antimeridian(self):
+        geometry = {
+            "type": "Polygon",
+            "coordinates": [[[178, 2], [179, 4], [-179, 3], [178, 2]]],
+        }
+        self.assertEqual(geometry_bbox(geometry), [178.0, 2.0, -179.0, 4.0])
+
 
 class ManifestTests(unittest.TestCase):
     def test_requires_complete_exact_coverage(self):
         catalog = {
             "country_counts": {"am": 2},
-            "regions": [{"id": "am-a"}, {"id": "am-b"}],
+            "regions": [
+                {"id": "am-a", "bbox": [1.0, 2.0, 3.0, 4.0]},
+                {"id": "am-b", "bbox": [5.0, 6.0, 7.0, 8.0]},
+            ],
         }
         fragments = [
             {"shard_count": 2, "shard_index": 0, "regions": [{"id": "am-b"}]},
@@ -114,11 +138,23 @@ class ManifestTests(unittest.TestCase):
         ]
         manifest = merge(catalog, fragments, "maps-test", "test")
         self.assertEqual([item["id"] for item in manifest["regions"]], ["am-a", "am-b"])
+        self.assertEqual(manifest["regions"][0]["bbox"], [1.0, 2.0, 3.0, 4.0])
 
     def test_rejects_missing_region(self):
-        catalog = {"country_counts": {"am": 1}, "regions": [{"id": "am-a"}]}
+        catalog = {
+            "country_counts": {"am": 1},
+            "regions": [{"id": "am-a", "bbox": [1.0, 2.0, 3.0, 4.0]}],
+        }
         fragments = [{"shard_count": 1, "shard_index": 0, "regions": []}]
         with self.assertRaises(ValueError):
+            merge(catalog, fragments, "maps-test", "test")
+
+    def test_rejects_missing_catalog_bbox(self):
+        catalog = {"country_counts": {"am": 1}, "regions": [{"id": "am-a"}]}
+        fragments = [
+            {"shard_count": 1, "shard_index": 0, "regions": [{"id": "am-a"}]}
+        ]
+        with self.assertRaisesRegex(ValueError, "invalid bbox"):
             merge(catalog, fragments, "maps-test", "test")
 
 
